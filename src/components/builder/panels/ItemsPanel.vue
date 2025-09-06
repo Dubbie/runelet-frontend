@@ -50,13 +50,35 @@ watch(searchTerm, (newTerm) => {
 
 // 4. THE ITEM SELECTION LOGIC REMAINS IDENTICAL
 function handleItemSelect(item: Item) {
+  // If the item is equipable, call equipItem (our "Smart Click")
   if (item.equipment_stats) {
     blueprintStore.equipItem(item)
-    searchInputRef.value?.focus()
   } else {
-    // Here you can implement the "add to inventory" logic later
-    alert(`'${item.name}' is not an equipable item.`)
+    // If NOT equipable, try to add it to the inventory
+    const success = blueprintStore.addItemToInventory(item)
+    if (!success) {
+      alert('Your inventory is full.')
+    }
   }
+
+  // Focus the search input again
+  if (searchInputRef.value) {
+    searchInputRef.value.focus()
+  }
+}
+
+function handleDragStart(event: DragEvent, item: Item) {
+  blueprintStore.startDrag('item-search', item)
+
+  if (!event.dataTransfer) return
+  event.dataTransfer.setData(
+    'application/json',
+    JSON.stringify({
+      source: 'item-search',
+      item: item,
+    }),
+  )
+  event.dataTransfer.effectAllowed = 'copy'
 }
 </script>
 
@@ -97,15 +119,18 @@ function handleItemSelect(item: Item) {
       <!-- Results List -->
       <ul v-else class="space-y-1">
         <li v-for="item in searchResults" :key="item.item_id">
-          <button
+          <div
+            :draggable="true"
+            @dragstart="handleDragStart($event, item)"
+            @dragend="blueprintStore.endDrag"
             @click="handleItemSelect(item)"
-            class="w-full flex items-center gap-x-3 p-1.5 rounded-md text-left hover:bg-white/10 transition-colors"
+            class="w-full flex items-center gap-x-3 p-1.5 rounded-md text-left transition-colors cursor-grab hover:bg-white/10"
           >
             <div v-if="item.image_url" class="size-8 flex items-center justify-center shrink-0">
               <img :src="item.image_url" :alt="item.name" class="max-w-full max-h-full" />
             </div>
             <span class="text-white text-sm truncate">{{ item.name }}</span>
-          </button>
+          </div>
         </li>
       </ul>
     </div>

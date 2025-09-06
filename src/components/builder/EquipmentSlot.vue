@@ -12,7 +12,7 @@ defineEmits(['click'])
 </script>
 
 <template>
-  <div class="size-10 bg-white/5 border border-white/10 rounded-md" @click="$emit('click')">
+  <div class="size-10 bg-white/5 rounded-md" @click="$emit('click')">
     <div class="flex h-full items-center justify-center">
       <template v-if="item">
         <img v-if="item.image_url" :src="item.image_url" :alt="item.name" loading="lazy" />

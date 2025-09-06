@@ -6,6 +6,12 @@ import type { EquipmentSlotName, Item, EquipmentStat } from '@/interfaces'
 // These interfaces define the shape of our data.
 
 export type Spellbook = 'standard' | 'ancient' | 'lunar' | 'arceuus'
+export type DragSource = 'inventory' | 'item-search' | 'equipment'
+
+export interface DragPayload {
+  source: DragSource
+  item: Item
+}
 
 export interface PrayerPreset {
   id: string // Unique client-side ID
@@ -81,6 +87,7 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     magic: 99,
     prayer: 99,
   })
+  const dragPayload = ref<DragPayload | null>(null)
 
   // --- GETTERS (COMPUTED) ---
 
@@ -126,9 +133,39 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     return initialBonuses
   })
 
-  // --- ACTIONS ---
+  // ===================================================================
+  // --- INTERNAL HELPER ACTIONS ---
+  // ===================================================================
 
-  // Blueprint-level Actions
+  /**
+   * Internal helper to add an item to the first available inventory slot.
+   * This is the single source of truth for this logic.
+   * @returns {boolean} - True if successful, false if inventory is full.
+   */
+  function _addItemToInventory(item: Item): boolean {
+    const loadout = activeLoadout.value
+    if (!loadout) return false
+    const emptyIndex = loadout.inventoryItems.findIndex((i) => i === null)
+    if (emptyIndex !== -1) {
+      loadout.inventoryItems[emptyIndex] = item
+      return true
+    }
+    return false
+  }
+
+  // ===================================================================
+  // --- PUBLIC ACTIONS ---
+  // ===================================================================
+  // Dragging
+  function startDrag(source: DragSource, item: Item) {
+    dragPayload.value = { source, item }
+  }
+
+  function endDrag() {
+    dragPayload.value = null
+  }
+
+  // Blueprint
   function setBlueprintTitle(title: string) {
     blueprint.value.title = title
   }
@@ -136,7 +173,7 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     blueprint.value.description = description
   }
 
-  // Loadout Management Actions
+  // Loadout Management
   function addLoadout(name = 'New Loadout') {
     const currentActiveLoadout = activeLoadout.value
 
@@ -193,56 +230,151 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     }
   }
 
-  // Active Loadout Modification Actions
-  function equipItem(item: Item, inventorySlotIndex?: number) {
+  // ===================================================================
+  // --- CORE ITEM MANAGEMENT ---
+  // ===================================================================
+  /**
+   * The single, authoritative action for equipping an item.
+   * It handles all logic for 1H/2H/Shield interactions and correctly
+   * performs swaps when an item is equipped from the inventory.
+   *
+   * @param itemToEquip The item to put on.
+   * @param fromInventoryIndex (Optional) The inventory index the item is coming from.
+   */
+  function equipItem(itemToEquip: Item, fromInventoryIndex?: number) {
     const loadout = activeLoadout.value
-    if (!loadout || !item.equipment_stats) return
+    if (!loadout || !itemToEquip.equipment_stats) return
 
-    const slot = item.equipment_stats.slot
+    const { slot: newItemSlot } = itemToEquip.equipment_stats
+    const { equippedItems } = loadout
 
-    // 2H / Shield handling
-    if (slot === '2h') {
-      loadout.equippedItems.weapon = null
-      loadout.equippedItems.shield = null
-    } else if (slot === 'weapon' || slot === 'shield') {
-      loadout.equippedItems['2h'] = null
+    // Use a Set to automatically prevent duplication bugs.
+    const displacedItems = new Set<Item>()
+    let primaryDisplacedItem: Item | null = null
+
+    // 1. Determine which items will be displaced based on CLEAR rules.
+    if (newItemSlot === '2h') {
+      // Rule: A 2H weapon displaces whatever is in the weapon AND shield slots.
+      if (equippedItems.weapon) displacedItems.add(equippedItems.weapon)
+      if (equippedItems.shield) displacedItems.add(equippedItems.shield)
+      primaryDisplacedItem = equippedItems.weapon // The main swap target is the weapon
+    } else if (newItemSlot === 'weapon') {
+      // Rule: A 1H weapon displaces whatever is in the weapon slot.
+      if (equippedItems.weapon) displacedItems.add(equippedItems.weapon)
+      primaryDisplacedItem = equippedItems.weapon
+    } else if (newItemSlot === 'shield') {
+      // Rule: A shield displaces an existing shield AND any equipped 2H weapon.
+      if (equippedItems.shield) displacedItems.add(equippedItems.shield)
+      // Check if the EQUIPPED WEAPON is a 2H item.
+      if (equippedItems.weapon && equippedItems.weapon.equipment_stats?.slot === '2h') {
+        displacedItems.add(equippedItems.weapon)
+      }
+      primaryDisplacedItem = equippedItems.shield
+    } else {
+      // Rule: Any other item displaces what's in its own slot.
+      if (equippedItems[newItemSlot]) displacedItems.add(equippedItems[newItemSlot]!)
+      primaryDisplacedItem = equippedItems[newItemSlot]
     }
 
-    // Perform the swap: move old item to inventory if the slot is full
-    const oldItem = loadout.equippedItems[slot]
-    if (oldItem) {
-      const targetIndex = inventorySlotIndex ?? loadout.inventoryItems.findIndex((i) => i === null)
-      if (targetIndex !== -1) {
-        loadout.inventoryItems[targetIndex] = oldItem
+    // 2. Clear all affected slots before equipping the new item.
+    displacedItems.forEach((item) => {
+      const slotToClear = item.equipment_stats?.slot
+      if (slotToClear === '2h') {
+        equippedItems.weapon = null
+      } else if (slotToClear) {
+        equippedItems[slotToClear] = null
+      }
+    })
+
+    // 3. Equip the new item. A 2H weapon goes into the 'weapon' slot.
+    const targetSlot = newItemSlot === '2h' ? 'weapon' : newItemSlot
+    equippedItems[targetSlot] = itemToEquip
+    // If we equipped a 1H weapon or shield, ensure the 2H slot is clear (it's not used for display).
+    if (newItemSlot === 'weapon' || newItemSlot === 'shield') {
+      equippedItems['2h'] = null
+    }
+
+    // 4. Handle the displaced items.
+    if (fromInventoryIndex !== undefined) {
+      // If this was a swap, the primary displaced item goes back to the specific inventory slot.
+      setInventoryItem(fromInventoryIndex, primaryDisplacedItem)
+      // Remove it from the set so it's not added to inventory twice.
+      if (primaryDisplacedItem) {
+        displacedItems.delete(primaryDisplacedItem)
       }
     }
 
-    loadout.equippedItems[slot] = item
+    // Any remaining displaced items (e.g., a shield from a 2H equip) go to the first empty slot.
+    displacedItems.forEach((item) => _addItemToInventory(item))
   }
 
+  /**
+   * Unequips an item from a slot and moves it to the inventory.
+   */
   function unequipItem(slot: EquipmentSlotName) {
     const loadout = activeLoadout.value
-    if (!loadout) return
+    const itemToUnequip = loadout?.equippedItems[slot]
+    if (!loadout || !itemToUnequip) return
 
-    const itemToUnequip = loadout.equippedItems[slot]
-    if (!itemToUnequip) return
-
-    // Find first empty inventory slot and place it there
-    const emptyIndex = loadout.inventoryItems.findIndex((i) => i === null)
-    if (emptyIndex !== -1) {
-      loadout.inventoryItems[emptyIndex] = itemToUnequip
+    if (_addItemToInventory(itemToUnequip)) {
       loadout.equippedItems[slot] = null
     } else {
-      // Optional: Handle full inventory case (e.g., show a notification)
       console.warn('Cannot unequip, inventory is full.')
     }
   }
 
+  /**
+   * Adds an item to the first available inventory slot.
+   * Public-facing wrapper for the internal helper.
+   */
+  function addItemToInventory(item: Item): boolean {
+    return _addItemToInventory(item)
+  }
+
+  /**
+   * Sets or clears an item at a specific inventory index.
+   */
   function setInventoryItem(index: number, item: Item | null) {
     const loadout = activeLoadout.value
     if (loadout && index >= 0 && index < 28) {
       loadout.inventoryItems[index] = item
     }
+  }
+
+  /**
+   * Moves an item from one inventory slot to another.
+   */
+  function moveInventoryItem(fromIndex: number, toIndex: number) {
+    const loadout = activeLoadout.value
+    if (!loadout || fromIndex === toIndex) return
+    const items = [...loadout.inventoryItems]
+    const [movedItem] = items.splice(fromIndex, 1)
+    items.splice(toIndex, 0, movedItem)
+    loadout.inventoryItems = items
+  }
+
+  /**
+   * Swaps an item between an equipment slot and a specific inventory slot.
+   */
+  function swapEquipmentAndInventoryItem(slot: EquipmentSlotName, invIndex: number) {
+    const loadout = activeLoadout.value
+    if (!loadout) return
+    const itemFromEquip = loadout.equippedItems[slot]
+    const itemFromInv = loadout.inventoryItems[invIndex]
+
+    loadout.inventoryItems[invIndex] = itemFromEquip
+    if (itemFromInv && itemFromInv.equipment_stats?.slot === slot) {
+      loadout.equippedItems[slot] = itemFromInv
+    } else {
+      loadout.equippedItems[slot] = null
+    }
+  }
+
+  /**
+   * Equips an item from a specific inventory slot, swapping with the equipped item.
+   */
+  function equipFromInventory(item: Item, fromIndex: number) {
+    equipItem(item, fromIndex)
   }
 
   function setSpellbook(book: Spellbook) {
@@ -287,6 +419,7 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     blueprint,
     activeLoadoutId,
     playerStats,
+    dragPayload,
     // Getters
     activeLoadout,
     activeEquippedItems,
@@ -295,6 +428,8 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     activeSpellbook,
     totalBonuses,
     // Actions
+    startDrag,
+    endDrag,
     setBlueprintTitle,
     setBlueprintDescription,
     addLoadout,
@@ -303,7 +438,11 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     setActiveLoadout,
     equipItem,
     unequipItem,
+    swapEquipmentAndInventoryItem,
+    addItemToInventory,
     setInventoryItem,
+    moveInventoryItem,
+    equipFromInventory,
     setSpellbook,
     addPrayerPreset,
     updatePrayerPreset,
