@@ -2,6 +2,7 @@
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { IconDotsVertical, IconPencil, IconX } from '@tabler/icons-vue'
 import { nextTick, ref, watch } from 'vue'
+import InlineInput from '../InlineInput.vue'
 
 interface Props {
   isActive?: boolean
@@ -48,15 +49,14 @@ const handleSave = () => {
 <template>
   <div class="relative group">
     <!-- EDITING STATE: Show the input field -->
-    <input
+    <InlineInput
       v-if="isEditing"
-      ref="inputRef"
-      type="text"
       v-model="editingValue"
+      size="sm"
+      autofocus
       @keyup.enter="handleSave"
       @keyup.esc="emit('cancel')"
       @blur="handleSave"
-      class="px-2 py-1 text-sm font-semibold rounded-md bg-white/5 outline-none ring-2 ring-yellow-500"
     />
 
     <!-- NORMAL STATE: Show the button and the menu -->

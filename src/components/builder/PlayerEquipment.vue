@@ -3,13 +3,18 @@ import { computed, ref } from 'vue'
 import { useBlueprintStore } from '@/stores/blueprint'
 import type { EquipmentSlotName, Item } from '@/interfaces'
 import EquipmentSlot from './EquipmentSlot.vue'
-import { SPELLBOOKS_DATA } from '@/constants/spellbooks'
+import { SPELLBOOKS_DATA, SPELLBOOKS_MAP } from '@/constants/spellbooks'
+
+defineProps({
+  editable: {
+    type: Boolean,
+    default: false,
+  },
+})
 
 const blueprintStore = useBlueprintStore()
 
 // --- Data-Driven Layout ---
-// This array defines the entire structure of the equipment grid.
-// Each inner array represents a row. This is our single source of truth for the layout.
 const equipmentLayout: EquipmentSlotName[][] = [
   ['head'],
   ['cape', 'neck', 'ammo'],
@@ -19,7 +24,6 @@ const equipmentLayout: EquipmentSlotName[][] = [
 ]
 
 // --- Drag & Drop State ---
-// This single ref tracks which slot is being hovered over.
 const dragOverSlot = ref<EquipmentSlotName | null>(null)
 
 const validDropSlot = computed<EquipmentSlotName | null>(() => {
@@ -127,24 +131,22 @@ function handleUnequip(slot: EquipmentSlotName) {
         <div
           v-for="slotName in row"
           :key="slotName"
-          @dragover="handleDragOver($event, slotName)"
-          @dragleave="dragOverSlot = null"
-          @drop="handleDrop($event, slotName)"
           class="rounded-md transition-colors"
           :class="{
-            // Hover highlight
-            'bg-yellow-500/20': dragOverSlot === slotName,
-            // Potential drop target
-            'bg-white/5 ': validDropSlot === slotName && dragOverSlot !== slotName,
+            'bg-yellow-500/20': editable && dragOverSlot === slotName,
+            'bg-white/5 ': editable && validDropSlot === slotName && dragOverSlot !== slotName,
           }"
+          @dragover="editable ? handleDragOver($event, slotName) : null"
+          @dragleave="editable ? (dragOverSlot = null) : null"
+          @drop="editable ? handleDrop($event, slotName) : null"
         >
           <EquipmentSlot
             :slot-name="slotName"
             :item="blueprintStore.activeEquippedItems[slotName]"
-            :draggable="!!blueprintStore.activeEquippedItems[slotName]"
-            @dragstart="handleDragStart($event, slotName)"
-            @dragend="blueprintStore.endDrag"
-            @click="handleUnequip(slotName)"
+            :draggable="editable && !!blueprintStore.activeEquippedItems[slotName]"
+            @dragstart="editable ? handleDragStart($event, slotName) : null"
+            @dragend="editable ? blueprintStore.endDrag() : null"
+            @click="editable ? handleUnequip(slotName) : null"
           />
         </div>
       </div>
@@ -153,19 +155,33 @@ function handleUnequip(slot: EquipmentSlotName) {
     <!-- Spellbook Section -->
     <div class="mt-1 w-full">
       <p class="text-zinc-400 text-xs text-center mb-1">Spellbook</p>
-      <div class="flex items-center justify-center gap-x-1">
+      <div v-if="editable" class="flex items-center justify-center gap-x-1">
         <button
           v-for="spellbook in SPELLBOOKS_DATA"
           :key="spellbook.id"
-          @click="blueprintStore.setSpellbook(spellbook.id)"
+          :disabled="!editable"
+          @click="editable ? blueprintStore.setSpellbook(spellbook.id) : null"
           class="p-1 rounded-full"
           :class="{
             'bg-amber-400/30': blueprintStore.activeSpellbook === spellbook.id,
-            'hover:bg-amber-400/10': blueprintStore.activeSpellbook !== spellbook.id,
+            'hover:bg-amber-400/10': editable && blueprintStore.activeSpellbook !== spellbook.id,
+            'cursor-not-allowed opacity-60': !editable,
           }"
         >
           <img :src="spellbook.imageUrl" alt="" />
         </button>
+      </div>
+
+      <div v-else>
+        <div v-if="blueprintStore.activeSpellbook" class="flex items-center justify-center gap-x-2">
+          <img
+            v-if="SPELLBOOKS_MAP.get(blueprintStore.activeSpellbook)?.imageUrl"
+            :src="SPELLBOOKS_MAP.get(blueprintStore.activeSpellbook)?.imageUrl"
+          />
+          <p class="text-sm">
+            {{ SPELLBOOKS_MAP.get(blueprintStore.activeSpellbook)?.name ?? 'Unknown Spellbook' }}
+          </p>
+        </div>
       </div>
     </div>
   </div>

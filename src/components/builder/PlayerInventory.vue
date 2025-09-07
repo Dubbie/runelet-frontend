@@ -4,6 +4,14 @@ import { useBlueprintStore } from '@/stores/blueprint'
 import type { EquipmentSlotName, Item } from '@/interfaces'
 import { IconX } from '@tabler/icons-vue'
 
+// 1. DEFINE THE PROP
+defineProps({
+  editable: {
+    type: Boolean,
+    default: false,
+  },
+})
+
 const blueprintStore = useBlueprintStore()
 
 const isDraggingAnyItem = computed(() => blueprintStore.dragPayload !== null)
@@ -93,24 +101,26 @@ function handleRemoveItem(index: number) {
       <div
         v-for="(item, index) in blueprintStore.activeInventoryItems"
         :key="index"
-        @dragover="handleDragOver($event, index)"
-        @dragleave="dragOverIndex = null"
-        @drop="handleDrop($event, index)"
         class="group relative size-10 rounded-md transition-colors"
         :class="{
-          'bg-yellow-500/25': dragOverIndex === index,
-          'bg-white/5': isDraggingAnyItem && !item && dragOverIndex !== index,
+          'bg-yellow-500/25': editable && dragOverIndex === index,
+          'bg-white/5': editable && isDraggingAnyItem && !item && dragOverIndex !== index,
         }"
+        @dragover="editable ? handleDragOver($event, index) : null"
+        @dragleave="editable ? (dragOverIndex = null) : null"
+        @drop="editable ? handleDrop($event, index) : null"
       >
-        <!-- The draggable item itself, now with a click handler -->
         <div
           v-if="item"
-          :draggable="true"
-          @dragstart="handleDragStart($event, item, index)"
-          @dragend="cleanupDragState"
-          @click="handleSlotClick(item, index)"
-          class="w-full h-full p-1 cursor-pointer active:cursor-grabbing flex items-center justify-center"
-          :class="{ 'opacity-30': draggingIndex === index }"
+          class="w-full h-full p-1 flex items-center justify-center"
+          :class="{
+            'cursor-pointer active:cursor-grabbing': editable,
+            'opacity-30': editable && draggingIndex === index,
+          }"
+          :draggable="editable"
+          @dragstart="editable ? handleDragStart($event, item, index) : null"
+          @dragend="editable ? cleanupDragState() : null"
+          @click="editable ? handleSlotClick(item, index) : null"
         >
           <img
             v-if="item.image_url"
@@ -121,9 +131,9 @@ function handleRemoveItem(index: number) {
           <p v-else>{{ item.name }}</p>
         </div>
 
-        <!-- NEW: Hover-to-reveal Remove Button -->
+        <!-- Only show the remove button if editable -->
         <button
-          v-if="item"
+          v-if="editable && item"
           @click.stop="handleRemoveItem(index)"
           class="absolute -right-1 -top-1 z-10 flex items-center justify-center rounded-full bg-zinc-700 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-500"
         >

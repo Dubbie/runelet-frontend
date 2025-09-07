@@ -4,7 +4,16 @@ import { useBlueprintStore } from '@/stores/blueprint'
 import type { PrayerPreset } from '@/stores/blueprint'
 import { PRAYERS_MAP } from '@/constants/prayers'
 import PrayerSelectionModal from '@/components/builder/modals/PrayerSelectionModal.vue'
-import { IconPencil, IconX } from '@tabler/icons-vue'
+import { IconPencil, IconPlus, IconX } from '@tabler/icons-vue'
+import InlineInput from '@/components/ui/InlineInput.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+
+defineProps({
+  editable: {
+    type: Boolean,
+    default: false,
+  },
+})
 
 const blueprintStore = useBlueprintStore()
 
@@ -58,8 +67,13 @@ function handleRenamePreset(preset: PrayerPreset, event: Event) {
         v-if="!blueprintStore.activePrayerPresets?.length"
         class="h-full flex flex-col items-center justify-center text-xs text-zinc-500"
       >
-        <p>No prayer presets created.</p>
-        <p>Click "Add New Preset" to start.</p>
+        <template v-if="editable">
+          <p>No prayer presets created.</p>
+          <p>Click "Add New Preset" to start.</p>
+        </template>
+        <template v-else>
+          <p>No prayer presets set up.</p>
+        </template>
       </div>
 
       <!-- Preset Items -->
@@ -69,13 +83,15 @@ function handleRenamePreset(preset: PrayerPreset, event: Event) {
         class="bg-white/5 p-2 rounded-lg"
       >
         <div class="flex items-center justify-between">
-          <input
-            type="text"
-            :value="preset.name"
-            @change="handleRenamePreset(preset, $event)"
-            class="bg-transparent font-semibold text-white focus:outline-none focus:bg-white/10 rounded px-2 py-1"
+          <InlineInput
+            :model-value="preset.name"
+            size="sm"
+            variant="ghost"
+            :readonly="!editable"
+            @change="editable ? handleRenamePreset(preset, $event) : null"
+            :class="{ 'cursor-default': !editable }"
           />
-          <div class="flex items-center gap-x-1">
+          <div v-if="editable" class="flex items-center gap-x-1">
             <button
               @click="openModal(preset)"
               class="p-1 text-zinc-400 hover:text-white rounded hover:bg-white/10"
@@ -90,7 +106,7 @@ function handleRenamePreset(preset: PrayerPreset, event: Event) {
             </button>
           </div>
         </div>
-        <div class="flex items-center gap-x-1 mt-2 pl-1">
+        <div class="flex items-center gap-x-3 mt-2 pl-1">
           <div v-if="!preset.prayers.length" class="text-xs text-zinc-500 italic">
             No prayers selected
           </div>
@@ -99,23 +115,19 @@ function handleRenamePreset(preset: PrayerPreset, event: Event) {
             :key="prayerId"
             :src="PRAYERS_MAP.get(prayerId)?.imageUrl"
             :alt="PRAYERS_MAP.get(prayerId)?.name"
-            class="size-7"
           />
         </div>
       </div>
     </div>
 
-    <!-- Add Button -->
-    <div class="pt-2">
-      <button
-        @click="handleAddPreset"
-        class="w-full text-center py-2 bg-white/5 hover:bg-white/15 rounded-md text-sm font-semibold"
-      >
+    <!-- Hide the "Add" button when not editable -->
+    <div v-if="editable" class="pt-2">
+      <BaseButton class="w-full" @click="handleAddPreset">
+        <template #icon><IconPlus class="size-4" stroke-width="3" /></template>
         Add New Preset
-      </button>
+      </BaseButton>
     </div>
 
-    <!-- The Modal (only rendered when needed) -->
     <PrayerSelectionModal
       :is-open="isModalOpen"
       :initial-selection="presetToEdit?.prayers ?? []"

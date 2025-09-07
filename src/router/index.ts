@@ -1,4 +1,4 @@
-import BlueprintBuilderView from '@/views/BlueprintBuilderView.vue'
+import BlueprintView from '@/views/builder/BlueprintView.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -6,8 +6,8 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'blueprint-builder',
-      component: BlueprintBuilderView, // <-- Set it as the component for the root path
+      name: 'blueprint',
+      component: BlueprintView,
     },
   ],
 })

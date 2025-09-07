@@ -9,22 +9,22 @@ export interface SpellbookData {
 export const SPELLBOOKS_DATA: SpellbookData[] = [
   {
     id: 'standard',
-    name: 'Standard spellbook',
+    name: 'Standard',
     imageUrl: '/images/spellbooks/standard.webp',
   },
   {
     id: 'arceuus',
-    name: 'Arceuus spellbook',
+    name: 'Arceuus',
     imageUrl: '/images/spellbooks/arceuus.png',
   },
   {
     id: 'ancient',
-    name: 'Ancient spellbook',
+    name: 'Ancient',
     imageUrl: '/images/spellbooks/ancient.webp',
   },
   {
     id: 'lunar',
-    name: 'Lunar spellbook',
+    name: 'Lunar',
     imageUrl: '/images/spellbooks/lunar.webp',
   },
 ]
