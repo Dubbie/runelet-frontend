@@ -19,7 +19,7 @@ const activePanelId = ref('items')
 const panelTabs = computed(() => {
   if (props.editable) {
     return [
-      { id: 'items', label: 'Items' },
+      { id: 'items', label: 'Search Items' },
       { id: 'prayer', label: 'Prayer Presets' },
       { id: 'notes', label: 'Notes' },
     ]
