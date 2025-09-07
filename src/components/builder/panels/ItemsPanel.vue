@@ -15,6 +15,7 @@ const highlightedIndex = ref(-1)
 let debounceTimer: number | undefined
 
 const resultRefs = ref<HTMLLIElement[]>([])
+const isKeyboardNavigating = ref(false)
 
 onBeforeUpdate(() => {
   resultRefs.value = []
@@ -93,10 +94,23 @@ function handleDragStart(event: DragEvent, item: Item) {
   event.dataTransfer.effectAllowed = 'copy'
 }
 
+function handleMouseover(index: number) {
+  if (isKeyboardNavigating.value) {
+    return
+  }
+  highlightedIndex.value = index
+}
+
+function handleMousemove() {
+  isKeyboardNavigating.value = false
+}
+
 // --- Keyboard Navigation ---
 function handleKeydown(event: KeyboardEvent) {
   const resultsCount = searchResults.value.length
   if (resultsCount === 0) return
+
+  isKeyboardNavigating.value = true
 
   let newIndex = highlightedIndex.value
 
@@ -114,18 +128,17 @@ function handleKeydown(event: KeyboardEvent) {
       if (highlightedIndex.value !== -1) {
         handleItemSelection(searchResults.value[highlightedIndex.value])
       }
-      return // Exit early
+      return
     case 'Escape':
       searchTerm.value = ''
       searchResults.value = []
-      return // Exit early
+      return
     default:
-      return // Exit for any other key
+      isKeyboardNavigating.value = false
+      return
   }
 
   highlightedIndex.value = newIndex
-
-  // Scroll the highlighted item into view
   nextTick(() => {
     resultRefs.value[highlightedIndex.value]?.scrollIntoView({
       behavior: 'smooth',
@@ -154,10 +167,7 @@ function handleKeydown(event: KeyboardEvent) {
 
       <div
         class="absolute inset-y-0 right-0 flex items-center pr-1.5 transition-all"
-        :class="{
-          'opacity-0': searchTerm.length === 0,
-          'opacity-100': searchTerm.length >= 2,
-        }"
+        :class="{ 'opacity-0': searchTerm.length === 0, 'opacity-100': searchTerm.length >= 2 }"
       >
         <div class="group p-1 rounded-lg hover:bg-white/10" @click="handleResetSearch">
           <IconX class="size-4 text-zinc-400 group-hover:text-white" />
@@ -182,7 +192,8 @@ function handleKeydown(event: KeyboardEvent) {
             No results for "{{ searchTerm }}"
           </div>
 
-          <ul v-else class="space-y-1">
+          <!-- 4. ADD @mousemove to the list container -->
+          <ul v-else class="space-y-1" @mousemove="handleMousemove">
             <li
               v-for="(item, index) in searchResults"
               :key="item.item_id"
@@ -194,7 +205,7 @@ function handleKeydown(event: KeyboardEvent) {
               @dragstart="handleDragStart($event, item)"
               @dragend="blueprintStore.endDrag"
               @click="handleItemSelection(item)"
-              @mouseover="highlightedIndex = index"
+              @mouseover="handleMouseover(index)"
               :ref="
                 (el) => {
                   if (el) resultRefs[index] = el as HTMLLIElement
