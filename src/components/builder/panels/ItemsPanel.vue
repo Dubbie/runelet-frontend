@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onBeforeUpdate } from 'vue'
 import { useBlueprintStore } from '@/stores/blueprint'
 import type { Item } from '@/interfaces'
 import { itemApiService } from '@/api/itemApiService'
@@ -7,13 +7,18 @@ import { IconSearch, IconX } from '@tabler/icons-vue'
 
 const blueprintStore = useBlueprintStore()
 
-// --- State Management ---
 const searchTerm = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const searchResults = ref<Item[]>([])
 const isLoading = ref(false)
-const highlightedIndex = ref(-1) // -1 means no item is highlighted
+const highlightedIndex = ref(-1)
 let debounceTimer: number | undefined
+
+const resultRefs = ref<HTMLLIElement[]>([])
+
+onBeforeUpdate(() => {
+  resultRefs.value = []
+})
 
 // --- API & Debouncing ---
 async function searchItems(term: string) {
@@ -21,7 +26,6 @@ async function searchItems(term: string) {
     const apiResponse = await itemApiService.getItems(1, term)
     searchResults.value = apiResponse.data
 
-    // Automatically highlight the first result
     if (searchResults.value.length > 0) {
       highlightedIndex.value = 0
     }
@@ -35,7 +39,7 @@ async function searchItems(term: string) {
 
 watch(searchTerm, (newTerm) => {
   clearTimeout(debounceTimer)
-  highlightedIndex.value = -1 // Reset highlight on new search
+  highlightedIndex.value = -1
 
   if (newTerm.length < 2) {
     searchResults.value = []
@@ -49,22 +53,13 @@ watch(searchTerm, (newTerm) => {
   }, 300)
 })
 
-// --- User Actions ---
-
-/**
- * Handles the selection of an item, either by click or Enter key.
- * This function contains the core logic for adding/equipping.
- */
 function handleItemSelection(item: Item) {
   if (!item) return
 
-  // Temporarily store the search term before any action can clear it.
   const currentSearch = searchTerm.value
 
-  // Perform the action (equip or add to inventory)
   if (item.equipment_stats) {
     blueprintStore.equipItem(item)
-    // For equippable items, clear the search term and results.
     searchTerm.value = ''
     searchResults.value = []
   } else {
@@ -72,11 +67,9 @@ function handleItemSelection(item: Item) {
     if (!success) {
       alert('Your inventory is full.')
     }
-    // For consumables, restore the search term to allow for repeated additions.
     searchTerm.value = currentSearch
   }
 
-  // Always re-focus the input for a seamless workflow.
   nextTick(() => {
     searchInputRef.value?.focus()
   })
@@ -85,8 +78,6 @@ function handleItemSelection(item: Item) {
 function handleResetSearch() {
   searchTerm.value = ''
   searchResults.value = []
-
-  // Always re-focus the input for a seamless workflow.
   nextTick(() => {
     searchInputRef.value?.focus()
   })
@@ -103,31 +94,44 @@ function handleDragStart(event: DragEvent, item: Item) {
 }
 
 // --- Keyboard Navigation ---
-
 function handleKeydown(event: KeyboardEvent) {
   const resultsCount = searchResults.value.length
   if (resultsCount === 0) return
 
+  let newIndex = highlightedIndex.value
+
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()
-      highlightedIndex.value = (highlightedIndex.value + 1) % resultsCount
+      newIndex = (highlightedIndex.value + 1) % resultsCount
       break
     case 'ArrowUp':
       event.preventDefault()
-      highlightedIndex.value = (highlightedIndex.value - 1 + resultsCount) % resultsCount
+      newIndex = (highlightedIndex.value - 1 + resultsCount) % resultsCount
       break
     case 'Enter':
       event.preventDefault()
       if (highlightedIndex.value !== -1) {
         handleItemSelection(searchResults.value[highlightedIndex.value])
       }
-      break
+      return // Exit early
     case 'Escape':
       searchTerm.value = ''
       searchResults.value = []
-      break
+      return // Exit early
+    default:
+      return // Exit for any other key
   }
+
+  highlightedIndex.value = newIndex
+
+  // Scroll the highlighted item into view
+  nextTick(() => {
+    resultRefs.value[highlightedIndex.value]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    })
+  })
 }
 </script>
 
@@ -143,6 +147,7 @@ function handleKeydown(event: KeyboardEvent) {
         autocomplete="off"
       />
 
+      <!-- Icons and other elements are unchanged -->
       <div class="absolute pointer-events-none inset-y-0 left-0 flex items-center pl-3">
         <IconSearch class="size-5 text-zinc-600" />
       </div>
@@ -164,15 +169,12 @@ function handleKeydown(event: KeyboardEvent) {
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <!-- This single div is now the only child of the transition -->
         <div
           v-if="searchTerm.length >= 2"
           class="absolute z-20 mt-1 w-full h-52 overflow-y-auto focus:outline-none"
         >
-          <!-- Loading State -->
+          <!-- Loading/No Results states are unchanged -->
           <div v-if="isLoading" class="text-center text-zinc-400 p-4">Searching...</div>
-
-          <!-- No Results State -->
           <div
             v-else-if="!isLoading && searchResults.length === 0"
             class="text-center text-zinc-400 p-4"
@@ -180,7 +182,6 @@ function handleKeydown(event: KeyboardEvent) {
             No results for "{{ searchTerm }}"
           </div>
 
-          <!-- Results List -->
           <ul v-else class="space-y-1">
             <li
               v-for="(item, index) in searchResults"
@@ -194,6 +195,11 @@ function handleKeydown(event: KeyboardEvent) {
               @dragend="blueprintStore.endDrag"
               @click="handleItemSelection(item)"
               @mouseover="highlightedIndex = index"
+              :ref="
+                (el) => {
+                  if (el) resultRefs[index] = el as HTMLLIElement
+                }
+              "
             >
               <div v-if="item.image_url" class="size-8 flex items-center justify-center shrink-0">
                 <img :src="item.image_url" :alt="item.name" class="max-w-full max-h-full" />
