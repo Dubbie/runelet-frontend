@@ -64,7 +64,7 @@ function handleSave() {
               : 'bg-zinc-800 hover:bg-zinc-700'
           "
         >
-          <img :src="prayer.imageUrl" :alt="prayer.name" class="w-7 mx-auto" />
+          <img :src="prayer.imageUrl" :alt="prayer.name" class="mx-auto" />
         </button>
       </div>
     </template>
