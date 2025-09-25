@@ -53,6 +53,8 @@ export interface Item {
   wiki_url: string
   equipment_stats: EquipmentStat | null
   requirements: ItemRequirement[]
+  rune_pouch_slots?: number
+  stored_runes?: (Item | null)[]
 }
 
 export interface ApiResponseMeta {

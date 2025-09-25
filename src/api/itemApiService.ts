@@ -20,6 +20,18 @@ class ItemApiService {
     }
     return response.json()
   }
+
+  public async getRunes(): Promise<Item[]> {
+    const url = `${this.baseUrl}/items/runes`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch runes')
+    }
+
+    const jsonResponse = await response.json()
+    return jsonResponse.data
+  }
 }
 
 export const itemApiService = new ItemApiService()

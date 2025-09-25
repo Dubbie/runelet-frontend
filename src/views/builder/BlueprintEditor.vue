@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import LoadoutDetails from '@/components/builder/LoadoutDetails.vue'
+import RunePouchModal from '@/components/builder/modals/RunePouchModal.vue'
 import PlayerEquipment from '@/components/builder/PlayerEquipment.vue'
 import PlayerInventory from '@/components/builder/PlayerInventory.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import ConfirmationModal from '@/components/ui/modals/ConfirmationModal.vue'
 import TabBar, { type Tab } from '@/components/ui/tabs/TabBar.vue'
+import type { Item } from '@/interfaces'
 import { useBlueprintStore } from '@/stores/blueprint'
 import { IconPlus } from '@tabler/icons-vue'
 import { computed, ref } from 'vue'
@@ -16,6 +18,11 @@ const blueprintStore = useBlueprintStore()
 // -- Confirmation
 const isConfirmationModalOpen = ref(false)
 const loadoutIdToDelete = ref<string | null>(null)
+
+// -- Rune Pouch
+const isRunePouchModalOpen = ref(false)
+const editingPouch = ref<Item | null>(null) // To store the pouch being edited
+const editingPouchIndex = ref<number | null>(null) // To store its inventory index
 
 // --- TabBar Data Transformation ---
 const loadoutTabs = computed<Tab[]>(() => {
@@ -44,6 +51,23 @@ const closeModal = () => {
 
 const handleRenameLoadout = (payload: { id: string; newName: string }) => {
   blueprintStore.renameLoadout(payload.id, payload.newName)
+}
+
+function handleOpenRunePouchModal(payload: { item: Item; index: number }) {
+  editingPouch.value = payload.item
+  editingPouchIndex.value = payload.index
+  isRunePouchModalOpen.value = true
+}
+
+function handleSaveRunePouch(payload: { runes: (Item | null)[]; index: number }) {
+  blueprintStore.updateRunePouch(payload.index, payload.runes)
+  closeRunePouchModal()
+}
+
+function closeRunePouchModal() {
+  isRunePouchModalOpen.value = false
+  editingPouch.value = null
+  editingPouchIndex.value = null
 }
 </script>
 
@@ -84,7 +108,7 @@ const handleRenameLoadout = (payload: { id: string; newName: string }) => {
 
     <div v-if="blueprintStore.activeLoadout" class="flex gap-x-3">
       <PlayerEquipment :editable="true" />
-      <PlayerInventory :editable="true" />
+      <PlayerInventory :editable="true" @open-rune-pouch="handleOpenRunePouchModal" />
       <LoadoutDetails :editable="true" />
     </div>
     <div v-else class="text-center py-10 text-zinc-500">
@@ -97,6 +121,14 @@ const handleRenameLoadout = (payload: { id: string; newName: string }) => {
       message="Are you sure you want to delete this loadout? This action cannot be undone."
       @close="closeModal"
       @confirm="confirmDelete"
+    />
+
+    <RunePouchModal
+      :is-open="isRunePouchModalOpen"
+      :pouch="editingPouch"
+      :inventory-index="editingPouchIndex"
+      @close="closeRunePouchModal"
+      @save="handleSaveRunePouch"
     />
   </div>
 </template>

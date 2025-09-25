@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { EquipmentSlotName, Item, EquipmentStat } from '@/interfaces'
+import { enrichItemData } from '@/utils/item-enhancer'
 
 // --- TYPE DEFINITIONS ---
 // These interfaces define the shape of our data.
@@ -145,9 +146,10 @@ export const useBlueprintStore = defineStore('blueprint', () => {
   function _addItemToInventory(item: Item): boolean {
     const loadout = activeLoadout.value
     if (!loadout) return false
+
     const emptyIndex = loadout.inventoryItems.findIndex((i) => i === null)
     if (emptyIndex !== -1) {
-      loadout.inventoryItems[emptyIndex] = item
+      loadout.inventoryItems[emptyIndex] = enrichItemData(item)
       return true
     }
     return false
@@ -337,7 +339,8 @@ export const useBlueprintStore = defineStore('blueprint', () => {
   function setInventoryItem(index: number, item: Item | null) {
     const loadout = activeLoadout.value
     if (loadout && index >= 0 && index < 28) {
-      loadout.inventoryItems[index] = item
+      // 2. Enrich the item before placing it in the state.
+      loadout.inventoryItems[index] = enrichItemData(item)
     }
   }
 
@@ -362,14 +365,16 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     const itemFromEquip = loadout.equippedItems[slot]
     const itemFromInv = loadout.inventoryItems[invIndex]
 
-    loadout.inventoryItems[invIndex] = itemFromEquip
+    // 3. We only need to enrich the item coming FROM equipment, as the
+    // one from inventory is already enriched.
+    loadout.inventoryItems[invIndex] = enrichItemData(itemFromEquip)
+
     if (itemFromInv && itemFromInv.equipment_stats?.slot === slot) {
       loadout.equippedItems[slot] = itemFromInv
     } else {
       loadout.equippedItems[slot] = null
     }
   }
-
   /**
    * Equips an item from a specific inventory slot, swapping with the equipped item.
    */
@@ -405,6 +410,20 @@ export const useBlueprintStore = defineStore('blueprint', () => {
       activeLoadout.value.prayerPresets = activeLoadout.value.prayerPresets.filter(
         (p) => p.id !== id,
       )
+    }
+  }
+
+  function updateRunePouch(inventoryIndex: number, newRunes: (Item | null)[]) {
+    const loadout = activeLoadout.value
+    if (!loadout) return
+
+    const pouch = loadout.inventoryItems[inventoryIndex]
+
+    // Verify that the item is indeed a pouch before updating
+    if (pouch && pouch.rune_pouch_slots) {
+      pouch.stored_runes = newRunes
+    } else {
+      console.warn('Attempted to update runes on a non-pouch item.')
     }
   }
 
@@ -448,5 +467,6 @@ export const useBlueprintStore = defineStore('blueprint', () => {
     updatePrayerPreset,
     removePrayerPreset,
     setPlayerStat,
+    updateRunePouch,
   }
 })

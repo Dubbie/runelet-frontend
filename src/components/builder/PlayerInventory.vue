@@ -12,36 +12,38 @@ defineProps({
   },
 })
 
+const emit = defineEmits<{
+  (e: 'open-rune-pouch', payload: { item: Item; index: number }): void
+}>()
+
 const blueprintStore = useBlueprintStore()
 
 const isDraggingAnyItem = computed(() => blueprintStore.dragPayload !== null)
 
 // --- Drag & Drop State ---
 // These refs provide live visual feedback during the drag operation
-const draggingIndex = ref<number | null>(null) // The index of the item being dragged
-const dragOverIndex = ref<number | null>(null) // The index of the slot being hovered over
+const draggingIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
 
 // --- Drag Event Handlers ---
-
 function handleDragStart(event: DragEvent, item: Item, index: number) {
   if (!event.dataTransfer) return
   blueprintStore.startDrag('inventory', item)
   draggingIndex.value = index
 
-  // 2. INCLUDE THE ITEM IN THE PAYLOAD
   event.dataTransfer.setData(
     'application/json',
     JSON.stringify({
       source: 'inventory',
       fromIndex: index,
-      item: item, // <-- THIS IS THE CRUCIAL FIX
+      item: item,
     }),
   )
   event.dataTransfer.effectAllowed = 'move'
 }
 
 function handleDragOver(event: DragEvent, index: number) {
-  event.preventDefault() // This is required to allow a drop
+  event.preventDefault()
   dragOverIndex.value = index
 }
 
@@ -64,8 +66,6 @@ function handleDrop(event: DragEvent, toIndex: number) {
     // Case 3: An item is dragged from equipment INTO the inventory
     else if (payload.source === 'equipment') {
       const fromSlot = payload.fromSlot as EquipmentSlotName
-
-      // Call our new, precise action. It handles all the logic.
       blueprintStore.swapEquipmentAndInventoryItem(fromSlot, toIndex)
     }
   } catch (e) {
@@ -84,7 +84,13 @@ function cleanupDragState() {
 function handleSlotClick(item: Item | null, index: number) {
   if (!item) return
 
-  // If the item is equipable, call our new store action
+  console.log('handleSlotClick', item, index)
+
+  if (item.rune_pouch_slots && item.rune_pouch_slots > 0) {
+    emit('open-rune-pouch', { item, index })
+    return
+  }
+
   if (item.equipment_stats) {
     blueprintStore.equipFromInventory(item, index)
   }
@@ -129,6 +135,29 @@ function handleRemoveItem(index: number) {
             class="max-w-full max-h-full pointer-events-none"
           />
           <p v-else>{{ item.name }}</p>
+
+          <div
+            v-if="item.rune_pouch_slots && item.stored_runes?.some((r) => r !== null)"
+            class="absolute inset-0 flex items-center justify-center p-0.5 pointer-events-none"
+            :class="{
+              'flex-wrap gap-px': item.rune_pouch_slots === 4, // 2x2 Grid for 4 slots
+              'flex-col gap-y-px': item.rune_pouch_slots === 3, // Vertical list for 3 slots
+            }"
+          >
+            <!-- We loop through the stored runes to display them -->
+            <template v-for="(rune, runeIndex) in item.stored_runes">
+              <img
+                v-if="rune && rune.image_url"
+                :key="`${rune.item_id}-${runeIndex}`"
+                :src="rune.image_url"
+                :alt="rune.name"
+                class="size-3 drop-shadow-lg"
+                :class="{
+                  'size-4': item.rune_pouch_slots === 4,
+                }"
+              />
+            </template>
+          </div>
         </div>
 
         <!-- Only show the remove button if editable -->
