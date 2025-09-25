@@ -4,13 +4,18 @@ import PlayerEquipment from '@/components/builder/PlayerEquipment.vue'
 import PlayerInventory from '@/components/builder/PlayerInventory.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
+import ConfirmationModal from '@/components/ui/modals/ConfirmationModal.vue'
 import TabBar, { type Tab } from '@/components/ui/tabs/TabBar.vue'
 import { useBlueprintStore } from '@/stores/blueprint'
 import { IconPlus } from '@tabler/icons-vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 // --- Pinia Store Integration ---
 const blueprintStore = useBlueprintStore()
+
+// -- Confirmation
+const isConfirmationModalOpen = ref(false)
+const loadoutIdToDelete = ref<string | null>(null)
 
 // --- TabBar Data Transformation ---
 const loadoutTabs = computed<Tab[]>(() => {
@@ -21,9 +26,20 @@ const loadoutTabs = computed<Tab[]>(() => {
 })
 
 const handleRemoveLoadout = (id: string) => {
-  if (window.confirm('Are you sure you want to delete this loadout?')) {
-    blueprintStore.removeLoadout(id)
+  loadoutIdToDelete.value = id
+  isConfirmationModalOpen.value = true
+}
+
+const confirmDelete = () => {
+  if (loadoutIdToDelete.value) {
+    blueprintStore.removeLoadout(loadoutIdToDelete.value)
   }
+  closeModal()
+}
+
+const closeModal = () => {
+  isConfirmationModalOpen.value = false
+  loadoutIdToDelete.value = null
 }
 
 const handleRenameLoadout = (payload: { id: string; newName: string }) => {
@@ -74,5 +90,13 @@ const handleRenameLoadout = (payload: { id: string; newName: string }) => {
     <div v-else class="text-center py-10 text-zinc-500">
       <p>No loadouts exist. Click "New Loadout" to get started.</p>
     </div>
+
+    <ConfirmationModal
+      :isOpen="isConfirmationModalOpen"
+      title="Delete Loadout"
+      message="Are you sure you want to delete this loadout? This action cannot be undone."
+      @close="closeModal"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
