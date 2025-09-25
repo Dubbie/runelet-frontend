@@ -90,15 +90,15 @@ function handleSave() {
     </template>
 
     <template #body>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-3 gap-4">
         <!-- Left Side: Pouch Contents -->
         <div>
           <h4 class="mb-2 text-sm font-medium text-zinc-300">Pouch Contents</h4>
-          <div class="grid grid-cols-2 gap-1 bg-zinc-800 p-2 rounded-lg">
+          <div class="grid grid-cols-2 gap-2">
             <div
               v-for="(_, index) in pouch?.rune_pouch_slots"
               :key="index"
-              class="group relative size-12 rounded-md bg-white/5 flex items-center justify-center"
+              class="group relative aspect-square rounded-md bg-white/5 flex items-center justify-center"
             >
               <img
                 v-if="localRunes[index]"
@@ -118,9 +118,9 @@ function handleSave() {
         </div>
 
         <!-- Right Side: Available Runes -->
-        <div>
+        <div class="col-span-2">
           <h4 class="mb-2 text-sm font-medium text-zinc-300">Available Runes</h4>
-          <div class="grid grid-cols-4 gap-1 bg-zinc-800 p-2 rounded-lg max-h-48 overflow-y-auto">
+          <div class="grid grid-cols-5 gap-1 bg-white/5 p-2 rounded-lg max-h-48 overflow-y-auto">
             <button
               v-for="rune in availableRunes"
               :key="rune.item_id"
@@ -137,7 +137,7 @@ function handleSave() {
 
     <template #footer>
       <BaseButton plain @click="emit('close')"> Cancel </BaseButton>
-      <BaseButton @click="handleSave"> Save </BaseButton>
+      <BaseButton color="white" @click="handleSave"> Save </BaseButton>
     </template>
   </BaseModal>
 </template>
