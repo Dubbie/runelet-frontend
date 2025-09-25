@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { PRAYERS_DATA } from '@/constants/prayers'
 import BaseModal from '@/components/ui/modals/BaseModal.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 interface Props {
   isOpen: boolean
@@ -51,7 +52,7 @@ function handleSave() {
     <template #title> Select Prayers </template>
 
     <template #body>
-      <div class="grid grid-cols-5 gap-2">
+      <div class="grid grid-cols-3 gap-2">
         <button
           v-for="prayer in PRAYERS_DATA"
           :key="prayer.id"
@@ -63,26 +64,14 @@ function handleSave() {
               : 'bg-zinc-800 hover:bg-zinc-700'
           "
         >
-          <img :src="prayer.imageUrl" :alt="prayer.name" class="w-8 h-8 mx-auto" />
+          <img :src="prayer.imageUrl" :alt="prayer.name" class="w-7 mx-auto" />
         </button>
       </div>
     </template>
 
     <template #footer>
-      <button
-        type="button"
-        @click="emit('close')"
-        class="inline-flex justify-center rounded-md border border-transparent bg-zinc-700 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-600"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        @click="handleSave"
-        class="inline-flex justify-center rounded-md border border-transparent bg-yellow-500 px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-yellow-400"
-      >
-        Save Changes
-      </button>
+      <BaseButton plain @click="emit('close')"> Cancel </BaseButton>
+      <BaseButton color="white" @click="handleSave"> Save changes </BaseButton>
     </template>
   </BaseModal>
 </template>

@@ -9,11 +9,12 @@ defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (e: 'after-leave'): void
 }>()
 </script>
 
 <template>
-  <TransitionRoot appear :show="isOpen" as="template">
+  <TransitionRoot appear :show="isOpen" as="template" @after-leave="emit('after-leave')">
     <Dialog as="div" @close="emit('close')" class="relative z-50">
       <TransitionChild
         as="template"
@@ -31,17 +32,17 @@ const emit = defineEmits<{
         <div class="flex min-h-full items-center justify-center p-4 text-center">
           <TransitionChild
             as="template"
-            enter="duration-300 ease-out"
-            enter-from="opacity-0 scale-95"
+            enter="duration-150 ease-out"
+            enter-from="opacity-0 scale-80"
             enter-to="opacity-100 scale-100"
-            leave="duration-200 ease-in"
-            leave-from="opacity-100 scale-100"
-            leave-to="opacity-0 scale-95"
+            leave="duration-150 ease-in"
+            leave-from="opacity-100"
+            leave-to="opacity-0"
           >
             <DialogPanel
-              class="w-full max-w-md transform overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-700 p-6 text-left align-middle shadow-xl transition-all"
+              class="w-full max-w-md transform overflow-hidden rounded-2xl bg-zinc-900 border border-white/5 p-6 text-left align-middle shadow-xl transition-all"
             >
-              <DialogTitle as="h3" class="text-lg font-medium leading-6 text-white">
+              <DialogTitle as="h3" class="text-lg font-semibold leading-6 text-white">
                 <slot name="title" />
               </DialogTitle>
 

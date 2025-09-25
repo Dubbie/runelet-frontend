@@ -7,6 +7,7 @@ import PrayerSelectionModal from '@/components/builder/modals/PrayerSelectionMod
 import { IconPencil, IconPlus, IconX } from '@tabler/icons-vue'
 import InlineInput from '@/components/ui/InlineInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import ConfirmationModal from '@/components/ui/modals/ConfirmationModal.vue'
 
 defineProps({
   editable: {
@@ -17,18 +18,23 @@ defineProps({
 
 const blueprintStore = useBlueprintStore()
 
-// --- Modal State ---
-const isModalOpen = ref(false)
+// --- Prayer Selection Modal State ---
+const isSelectionModalOpen = ref(false)
 const presetToEdit = ref<PrayerPreset | null>(null)
 
-function openModal(preset: PrayerPreset) {
+// --- 2. ADD STATE for the Deletion Confirmation Modal ---
+const isDeleteModalOpen = ref(false)
+const presetIdToDelete = ref<string | null>(null)
+
+// --- Prayer Selection Modal Handlers ---
+function openSelectionModal(preset: PrayerPreset) {
   presetToEdit.value = preset
-  isModalOpen.value = true
+  isSelectionModalOpen.value = true
 }
 
-function closeModal() {
-  isModalOpen.value = false
-  presetToEdit.value = null
+function closeSelectionModal() {
+  isSelectionModalOpen.value = false
+  presetToEdit.value = null // Cleanup can be simple here if no animation jump is noticed
 }
 
 function handleSaveChanges(newSelection: string[]) {
@@ -44,10 +50,10 @@ function handleAddPreset() {
   blueprintStore.addPrayerPreset('New Preset')
 }
 
+// 3. REFACTOR the delete handler to open the modal instead of showing an alert
 function handleDeletePreset(id: string) {
-  if (window.confirm('Are you sure you want to delete this preset?')) {
-    blueprintStore.removePrayerPreset(id)
-  }
+  presetIdToDelete.value = id // Store the ID of the preset we want to delete
+  isDeleteModalOpen.value = true // Open the confirmation modal
 }
 
 function handleRenamePreset(preset: PrayerPreset, event: Event) {
@@ -55,6 +61,22 @@ function handleRenamePreset(preset: PrayerPreset, event: Event) {
   if (newName.trim()) {
     blueprintStore.updatePrayerPreset(preset.id, { name: newName })
   }
+}
+
+// 4. ADD HANDLERS for the Deletion Modal's lifecycle
+function confirmDeletePreset() {
+  if (presetIdToDelete.value) {
+    blueprintStore.removePrayerPreset(presetIdToDelete.value)
+  }
+  requestDeleteModalClose() // Request to close the modal after action is performed
+}
+
+function requestDeleteModalClose() {
+  isDeleteModalOpen.value = false
+}
+
+function cleanupDeleteModalState() {
+  presetIdToDelete.value = null
 }
 </script>
 
@@ -82,7 +104,7 @@ function handleRenamePreset(preset: PrayerPreset, event: Event) {
         :key="preset.id"
         class="bg-white/5 p-2 rounded-lg"
       >
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-x-2">
           <InlineInput
             :model-value="preset.name"
             size="sm"
@@ -93,7 +115,7 @@ function handleRenamePreset(preset: PrayerPreset, event: Event) {
           />
           <div v-if="editable" class="flex items-center gap-x-1">
             <button
-              @click="openModal(preset)"
+              @click="openSelectionModal(preset)"
               class="p-1 text-zinc-400 hover:text-white rounded hover:bg-white/10"
             >
               <IconPencil class="size-4" />
@@ -129,10 +151,19 @@ function handleRenamePreset(preset: PrayerPreset, event: Event) {
     </div>
 
     <PrayerSelectionModal
-      :is-open="isModalOpen"
+      :is-open="isSelectionModalOpen"
       :initial-selection="presetToEdit?.prayers ?? []"
-      @close="closeModal"
+      @close="closeSelectionModal"
       @save="handleSaveChanges"
+    />
+
+    <ConfirmationModal
+      :is-open="isDeleteModalOpen"
+      title="Delete Preset"
+      message="Are you sure you want to delete this prayer preset? This action cannot be undone."
+      @close="requestDeleteModalClose"
+      @confirm="confirmDeletePreset"
+      @after-leave="cleanupDeleteModalState"
     />
   </div>
 </template>

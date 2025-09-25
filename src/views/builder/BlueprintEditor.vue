@@ -53,6 +53,7 @@ const handleRenameLoadout = (payload: { id: string; newName: string }) => {
   blueprintStore.renameLoadout(payload.id, payload.newName)
 }
 
+// --- Rune Pouch Modal handlers ---
 function handleOpenRunePouchModal(payload: { item: Item; index: number }) {
   editingPouch.value = payload.item
   editingPouchIndex.value = payload.index
@@ -61,11 +62,14 @@ function handleOpenRunePouchModal(payload: { item: Item; index: number }) {
 
 function handleSaveRunePouch(payload: { runes: (Item | null)[]; index: number }) {
   blueprintStore.updateRunePouch(payload.index, payload.runes)
-  closeRunePouchModal()
+  requestRunePouchModalClose()
 }
 
-function closeRunePouchModal() {
+function requestRunePouchModalClose() {
   isRunePouchModalOpen.value = false
+}
+
+function cleanupRunePouchModalState() {
   editingPouch.value = null
   editingPouchIndex.value = null
 }
@@ -127,8 +131,9 @@ function closeRunePouchModal() {
       :is-open="isRunePouchModalOpen"
       :pouch="editingPouch"
       :inventory-index="editingPouchIndex"
-      @close="closeRunePouchModal"
+      @close="requestRunePouchModalClose"
       @save="handleSaveRunePouch"
+      @after-leave="cleanupRunePouchModalState"
     />
   </div>
 </template>
