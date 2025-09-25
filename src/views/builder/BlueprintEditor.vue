@@ -77,8 +77,6 @@ function cleanupRunePouchModalState() {
 
 <template>
   <div>
-    <!-- The header has been removed from here -->
-
     <!-- Blueprint Description (Two-way bound to the store) -->
     <div class="mb-3">
       <BaseTextarea
