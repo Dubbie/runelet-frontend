@@ -1,23 +1,24 @@
 <script setup lang="ts">
+import { computed, inject } from 'vue'
+import { blueprintKey } from '@/composables/keys'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
-import { useBlueprintStore } from '@/stores/blueprint'
-import { computed } from 'vue'
 
-const props = defineProps({
-  editable: {
-    type: Boolean,
-    default: false,
-  },
-})
+const props = defineProps<{
+  editable: boolean
+}>()
 
-const blueprintStore = useBlueprintStore()
+const blueprintApi = inject(blueprintKey)
+if (!blueprintApi) {
+  throw new Error('Blueprint API not provided. Is NotesPanel a child of BlueprintEditor?')
+}
+
+const { activeLoadout, updateLoadoutNotes } = blueprintApi
 
 const activeLoadoutNotes = computed({
-  get: () => blueprintStore.activeLoadout?.notes ?? '',
-  set: (value) => {
-    // Only allow setting the value if the component is editable
-    if (props.editable && blueprintStore.activeLoadout) {
-      blueprintStore.activeLoadout.notes = value
+  get: () => activeLoadout.value?.notes ?? '',
+  set: (newValue) => {
+    if (props.editable) {
+      updateLoadoutNotes(newValue)
     }
   },
 })
@@ -31,13 +32,14 @@ const activeLoadoutNotes = computed({
       placeholder="Explain the choices for this specific loadout..."
       :readonly="!editable"
       class="h-full"
-      :class="{
-        'cursor-default': !editable,
-      }"
     />
 
-    <div v-else class="h-full flex flex-col items-center justify-center text-xs text-zinc-500">
-      <p>{{ activeLoadoutNotes.length ? activeLoadoutNotes : 'No notes given.' }}</p>
+    <div
+      v-else-if="activeLoadout"
+      class="h-full prose prose-invert prose-sm max-w-none text-zinc-400 overflow-y-auto"
+    >
+      <p v-if="activeLoadoutNotes.length">{{ activeLoadoutNotes }}</p>
+      <p v-else class="italic">No notes for this loadout.</p>
     </div>
   </div>
 </template>

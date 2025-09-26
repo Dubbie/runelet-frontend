@@ -1,18 +1,34 @@
 <script setup lang="ts">
-import BlueprintEditor from '@/views/builder/BlueprintEditor.vue'
 import { nodeViewProps, NodeViewWrapper } from '@tiptap/vue-3'
+import type { Blueprint } from '@/interfaces'
+import BlueprintEditor from '@/views/builder/BlueprintEditor.vue'
 
-// The nodeViewProps give us access to the node's attributes
+// `nodeViewProps` is a special object provided by Tiptap containing all the context for this node.
 const props = defineProps(nodeViewProps)
-const blueprintId = props.node.attrs.blueprintId
 
-// In a real app, you would use this ID to fetch the blueprint data
-// and pass it to the BlueprintEditor. For now, we can imagine it.
+/**
+ * This function is the "upward" data flow.
+ * When our BlueprintEditor emits an update, this function tells the main Tiptap editor
+ * to update this node's `blueprintData` attribute with the new value.
+ * @param newData The complete, updated blueprint object from the editor.
+ */
+const handleDataUpdate = (newData: Blueprint) => {
+  props.updateAttributes({
+    blueprintData: newData,
+  })
+}
 </script>
 
 <template>
-  <NodeViewWrapper class="blueprint-node my-4">
-    <!-- You would pass the loaded blueprint data and a 'readonly' prop -->
-    <BlueprintEditor :blueprint-id="blueprintId" :editable="false" />
+  <NodeViewWrapper
+    class="blueprint-node my-4 p-2 border-2 border-dashed border-zinc-700 rounded-lg"
+  >
+    <div class="p-1 text-xs text-zinc-500 font-bold uppercase select-none">Blueprint Loadouts</div>
+
+    <BlueprintEditor
+      :model-value="props.node.attrs.blueprintData"
+      :editable="props.editor.isEditable"
+      @update:model-value="handleDataUpdate"
+    />
   </NodeViewWrapper>
 </template>

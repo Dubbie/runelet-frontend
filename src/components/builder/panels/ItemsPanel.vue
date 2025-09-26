@@ -1,19 +1,29 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onBeforeUpdate } from 'vue'
-import { useBlueprintStore } from '@/stores/blueprint'
+import { ref, watch, nextTick, onBeforeUpdate, inject } from 'vue'
+import { blueprintKey } from '@/composables/keys'
 import type { Item } from '@/interfaces'
 import { itemApiService } from '@/api/itemApiService'
 import { IconSearch, IconX } from '@tabler/icons-vue'
 
-const blueprintStore = useBlueprintStore()
+// 2. INJECT the Blueprint API
+const blueprintApi = inject(blueprintKey)
+if (!blueprintApi) {
+  throw new Error(
+    'Blueprint API not provided. Is ItemSearchPanel a child of a component that provides it?',
+  )
+}
 
+// 3. DESTRUCTURE only the state and actions this component needs
+const { startDrag, endDrag, equipItem, addItemToInventory } = blueprintApi
+
+// --- Local Component State ---
+// All the state related to searching remains local to this component.
 const searchTerm = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const searchResults = ref<Item[]>([])
 const isLoading = ref(false)
 const highlightedIndex = ref(-1)
 let debounceTimer: number | undefined
-
 const resultRefs = ref<HTMLLIElement[]>([])
 const isKeyboardNavigating = ref(false)
 
@@ -57,20 +67,20 @@ watch(searchTerm, (newTerm) => {
 function handleItemSelection(item: Item) {
   if (!item) return
 
-  const currentSearch = searchTerm.value
-
   if (item.equipment_stats) {
-    blueprintStore.equipItem(item)
-    searchTerm.value = ''
-    searchResults.value = []
+    // Call the composable's action
+    equipItem(item)
   } else {
-    const success = blueprintStore.addItemToInventory(item)
+    // Call the composable's action
+    const success = addItemToInventory(item)
     if (!success) {
       alert('Your inventory is full.')
     }
-    searchTerm.value = currentSearch
   }
 
+  // Resetting the search term is a local UI concern
+  searchTerm.value = ''
+  searchResults.value = []
   nextTick(() => {
     searchInputRef.value?.focus()
   })
@@ -85,7 +95,8 @@ function handleResetSearch() {
 }
 
 function handleDragStart(event: DragEvent, item: Item) {
-  blueprintStore.startDrag('item-search', item)
+  // Call the composable's action
+  startDrag('item-search', item)
   if (!event.dataTransfer) return
   event.dataTransfer.setData(
     'application/json',
@@ -203,7 +214,7 @@ function handleKeydown(event: KeyboardEvent) {
                 index === highlightedIndex ? 'bg-yellow-400/10' : 'bg-transparent',
               ]"
               @dragstart="handleDragStart($event, item)"
-              @dragend="blueprintStore.endDrag"
+              @dragend="endDrag"
               @click="handleItemSelection(item)"
               @mouseover="handleMouseover(index)"
               :ref="

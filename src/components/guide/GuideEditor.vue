@@ -3,9 +3,10 @@ import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import type { TiptapDocument } from '@/interfaces/tiptap'
 import { watch } from 'vue'
+// We still need to import the extension to register it
 import BlueprintNode from '@/tiptap-extensions/BlueprintNode'
 
-// 1. DEFINE PROPS & EMITS for v-model
+// --- Props & Emits (Unchanged) ---
 const props = defineProps<{
   content: TiptapDocument | null
 }>()
@@ -14,9 +15,13 @@ const emit = defineEmits<{
   (e: 'update:content', value: TiptapDocument | null): void
 }>()
 
+// --- Tiptap Editor Instance (Unchanged) ---
 const editor = useEditor({
   content: props.content,
-  extensions: [StarterKit, BlueprintNode],
+  extensions: [
+    StarterKit,
+    BlueprintNode, // The extension is registered here
+  ],
   onUpdate: ({ editor }) => {
     const json = editor.getJSON() as TiptapDocument
     emit('update:content', json)
@@ -28,49 +33,30 @@ const editor = useEditor({
   },
 })
 
-function addBlueprint() {
-  // In a real application, this would open a modal to search for a blueprint.
-  // For now, we will hardcode an ID to demonstrate the functionality.
-  // Let's assume the user picks a blueprint with ID 'bp_12345'.
-  const blueprintId = prompt('Enter a Blueprint ID to embed:', 'bp_12345')
-
-  if (blueprintId) {
-    // This is the Tiptap command to insert our custom node
-    editor.value
-      ?.chain()
-      .focus()
-      .insertContent({
-        type: 'blueprint', // The name we defined in BlueprintNode.ts
-        attrs: {
-          blueprintId: blueprintId, // The data for our attribute
-        },
-      })
-      .run()
-  }
-}
-
+// --- Watcher for prop changes (Unchanged) ---
 watch(
   () => props.content,
   (newContent) => {
+    // This logic prevents an infinite loop of updates
     if (
       editor.value &&
       newContent &&
       JSON.stringify(editor.value.getJSON()) !== JSON.stringify(newContent)
     ) {
+      // The `false` here prevents the onUpdate hook from firing unnecessarily
       editor.value.commands.setContent(newContent)
     }
   },
 )
 </script>
 
-<!-- The template remains the same -->
 <template>
   <div class="border border-zinc-700 rounded-lg">
-    <!-- 2. ADD DYNAMIC CLASSES to the toolbar buttons -->
     <div
       v-if="editor"
       class="toolbar flex items-center gap-2 p-2 bg-zinc-800 rounded-t-lg border-b border-zinc-700"
     >
+      <!-- Standard Tiptap commands -->
       <button
         @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
         :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }"
@@ -89,14 +75,15 @@ watch(
       >
         P
       </button>
-      <button @click="addBlueprint">Embed Blueprint</button>
+
+      <button @click="editor.chain().focus().addBlueprint().run()">Embed Blueprint</button>
     </div>
 
-    <!-- 3. The EditorContent component will now use the classes from `editorProps` -->
     <EditorContent :editor="editor" class="p-4 min-h-[500px]" />
   </div>
 </template>
 
+<!-- The <style> block is unchanged -->
 <style>
 .toolbar button.is-active {
   background-color: #facc15; /* yellow-400 */

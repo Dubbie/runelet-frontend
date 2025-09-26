@@ -16,6 +16,19 @@ function isCustomComponentNode(node: TiptapNode): boolean {
 }
 
 function getComponentProps(node: TiptapNode) {
+  // If the node is a blueprint...
+  if (node.type === 'blueprint' && node.attrs?.blueprintData) {
+    // ...return an object with the correct prop name: `modelValue`.
+    return {
+      modelValue: node.attrs.blueprintData as Blueprint, // <-- The key change
+      editable: false, // We always want the rendered version to be read-only
+    }
+  }
+
+  // You can add other `if` blocks here for future components like JadTrainer
+  // that might have different prop names.
+
+  // Fallback for any other potential components
   return {
     ...node.attrs,
     editable: false,

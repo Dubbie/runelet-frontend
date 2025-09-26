@@ -57,7 +57,7 @@ const createInitialEquippedItems = (): Record<EquipmentSlotName, Item | null> =>
   '2h': null,
 })
 
-const createNewLoadout = (name: string): Loadout => ({
+export const createNewLoadout = (name: string): Loadout => ({
   id: crypto.randomUUID(),
   name,
   notes: '',
@@ -67,7 +67,7 @@ const createNewLoadout = (name: string): Loadout => ({
   spellbook: 'standard',
 })
 
-const createInitialBlueprint = (): Blueprint => ({
+export const createInitialBlueprint = (): Blueprint => ({
   id: null,
   title: 'Untitled Blueprint',
   description: '',

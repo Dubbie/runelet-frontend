@@ -77,3 +77,34 @@ export interface ApiResponse<T> {
   }
   meta: ApiResponseMeta
 }
+
+export type Spellbook = 'standard' | 'ancient' | 'lunar' | 'arceuus'
+export type DragSource = 'inventory' | 'item-search' | 'equipment'
+
+export interface DragPayload {
+  source: DragSource
+  item: Item
+}
+
+export interface PrayerPreset {
+  id: string // Unique client-side ID
+  name: string
+  prayers: string[] // Array of prayer names/IDs
+}
+
+export interface Loadout {
+  id: string // Unique client-side ID
+  name: string
+  notes: string
+  equippedItems: Record<EquipmentSlotName, Item | null>
+  inventoryItems: (Item | null)[] // Array of 28 items
+  prayerPresets: PrayerPreset[]
+  spellbook: Spellbook
+}
+
+export interface Blueprint {
+  id: string | null // Null for a new, unsaved blueprint
+  title: string
+  description: string
+  loadouts: Loadout[]
+}

@@ -1,43 +1,64 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useBlueprintStore } from '@/stores/blueprint'
+import { computed, ref, inject } from 'vue'
+import { blueprintKey } from '@/composables/keys' // 1. Import the Injection Key
 import type { EquipmentSlotName, Item } from '@/interfaces'
 import { IconX } from '@tabler/icons-vue'
 
-// 1. DEFINE THE PROP
-defineProps({
-  editable: {
-    type: Boolean,
-    default: false,
-  },
-})
+// --- Component API ---
+defineProps<{
+  editable: boolean
+}>()
 
 const emit = defineEmits<{
+  // The rune pouch event is a UI concern, so it rightfully stays here
   (e: 'open-rune-pouch', payload: { item: Item; index: number }): void
 }>()
 
-const blueprintStore = useBlueprintStore()
+// 2. INJECT the Blueprint API
+const blueprintApi = inject(blueprintKey)
+if (!blueprintApi) {
+  throw new Error('Blueprint API not provided. Is PlayerInventory a child of BlueprintEditor?')
+}
 
-const isDraggingAnyItem = computed(() => blueprintStore.dragPayload !== null)
+// 3. DESTRUCTURE only the state and actions this component needs
+const {
+  activeInventoryItems,
+  dragPayload,
+  startDrag,
+  endDrag,
+  moveInventoryItem,
+  setInventoryItem,
+  equipFromInventory,
+  swapEquipmentAndInventoryItem,
+} = blueprintApi
 
-// --- Drag & Drop State ---
-// These refs provide live visual feedback during the drag operation
+// --- Local UI State ---
 const draggingIndex = ref<number | null>(null)
 const dragOverIndex = ref<number | null>(null)
+const isDraggingAnyItem = computed(() => dragPayload.value !== null)
 
-// --- Drag Event Handlers ---
+// 4. EVENT HANDLERS now call the injected actions directly
 function handleDragStart(event: DragEvent, item: Item, index: number) {
   if (!event.dataTransfer) return
-  blueprintStore.startDrag('inventory', item)
+
+  // Find the actual <img> element that the user is dragging.
+  const imgElement = (event.target as HTMLElement).querySelector('img')
+  if (imgElement) {
+    // Tell the browser to use this specific image as the drag preview,
+    // and center it on the cursor.
+    event.dataTransfer.setDragImage(
+      imgElement,
+      imgElement.clientWidth / 2,
+      imgElement.clientHeight / 2,
+    )
+  }
+
+  startDrag('inventory', item)
   draggingIndex.value = index
 
   event.dataTransfer.setData(
     'application/json',
-    JSON.stringify({
-      source: 'inventory',
-      fromIndex: index,
-      item: item,
-    }),
+    JSON.stringify({ source: 'inventory', fromIndex: index, item: item }),
   )
   event.dataTransfer.effectAllowed = 'move'
 }
@@ -54,19 +75,13 @@ function handleDrop(event: DragEvent, toIndex: number) {
   try {
     const payload = JSON.parse(event.dataTransfer.getData('application/json'))
 
-    // Case 1: Reordering within the inventory
     if (payload.source === 'inventory') {
-      blueprintStore.moveInventoryItem(payload.fromIndex, toIndex)
-    }
-    // Case 2: Dropping a new item from the search panel
-    else if (payload.source === 'item-search') {
-      const item: Item = payload.item
-      blueprintStore.setInventoryItem(toIndex, item)
-    }
-    // Case 3: An item is dragged from equipment INTO the inventory
-    else if (payload.source === 'equipment') {
+      moveInventoryItem(payload.fromIndex, toIndex)
+    } else if (payload.source === 'item-search') {
+      setInventoryItem(toIndex, payload.item)
+    } else if (payload.source === 'equipment') {
       const fromSlot = payload.fromSlot as EquipmentSlotName
-      blueprintStore.swapEquipmentAndInventoryItem(fromSlot, toIndex)
+      swapEquipmentAndInventoryItem(fromSlot, toIndex)
     }
   } catch (e) {
     console.error('Failed to handle drop:', e)
@@ -78,13 +93,11 @@ function handleDrop(event: DragEvent, toIndex: number) {
 function cleanupDragState() {
   draggingIndex.value = null
   dragOverIndex.value = null
-  blueprintStore.endDrag()
+  endDrag()
 }
 
 function handleSlotClick(item: Item | null, index: number) {
   if (!item) return
-
-  console.log('handleSlotClick', item, index)
 
   if (item.rune_pouch_slots && item.rune_pouch_slots > 0) {
     emit('open-rune-pouch', { item, index })
@@ -92,20 +105,20 @@ function handleSlotClick(item: Item | null, index: number) {
   }
 
   if (item.equipment_stats) {
-    blueprintStore.equipFromInventory(item, index)
+    equipFromInventory(item, index)
   }
 }
 
 function handleRemoveItem(index: number) {
-  blueprintStore.setInventoryItem(index, null)
+  setInventoryItem(index, null)
 }
 </script>
 
 <template>
   <div class="bg-zinc-900 p-3 max-w-50 rounded-lg">
-    <div v-if="blueprintStore.activeInventoryItems" class="grid grid-cols-4 gap-0.5">
+    <div v-if="activeInventoryItems" class="grid grid-cols-4 gap-0.5">
       <div
-        v-for="(item, index) in blueprintStore.activeInventoryItems"
+        v-for="(item, index) in activeInventoryItems"
         :key="index"
         class="group relative size-10 rounded-md transition-colors"
         :class="{
@@ -113,7 +126,7 @@ function handleRemoveItem(index: number) {
           'bg-white/5': editable && isDraggingAnyItem && !item && dragOverIndex !== index,
         }"
         @dragover="editable ? handleDragOver($event, index) : null"
-        @dragleave="editable ? (dragOverIndex = null) : null"
+        @dragleave="dragOverIndex = null"
         @drop="editable ? handleDrop($event, index) : null"
       >
         <div
