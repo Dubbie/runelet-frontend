@@ -36,14 +36,15 @@ const loadoutTabs = computed<Tab[]>(() => {
       <TabBar
         class="mb-3"
         :tabs="loadoutTabs"
+        :show-edit="false"
         :active-tab-id="blueprintStore.activeLoadoutId"
         @update:active-tab-id="blueprintStore.setActiveLoadout"
       />
 
       <div v-if="blueprintStore.activeLoadout" class="flex gap-x-3">
-        <PlayerEquipment />
-        <PlayerInventory />
-        <LoadoutDetails />
+        <PlayerEquipment :editable="false" />
+        <PlayerInventory :editable="false" />
+        <LoadoutDetails :editable="false" />
       </div>
     </div>
 

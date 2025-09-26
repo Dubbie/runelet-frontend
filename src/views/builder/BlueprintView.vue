@@ -10,23 +10,21 @@ import InlineInput from '@/components/ui/InlineInput.vue'
 import { IconLink, IconPencil } from '@tabler/icons-vue'
 import SegmentedControl from '@/components/ui/SegmentedControl.vue'
 
-// 1. STATE CHANGE: Use a descriptive string instead of a boolean.
 const mode = ref<'customize' | 'preview'>('customize')
 
-// Define the options for our new component
 const modeOptions = [
   { value: 'preview', label: 'Preview' },
   { value: 'customize', label: 'Customize' },
 ]
 
-// --- Logic updated to use the 'mode' ref ---
+// The store is still the single source of truth for the STANDALONE page.
 const blueprintStore = useBlueprintStore()
 
+// The title editing logic remains the same, as it's part of this view's UI.
 const isEditingTitle = ref(false)
 const editingTitleValue = ref('')
 
 const startEditingTitle = () => {
-  // 2. Update the check
   if (mode.value !== 'customize') return
   editingTitleValue.value = blueprintStore.blueprint.title
   isEditingTitle.value = true
@@ -102,7 +100,11 @@ const handleTitleCancel = () => {
         mode="out-in"
       >
         <!-- 5. Update the main v-if to check the mode value -->
-        <BlueprintEditor v-if="mode === 'customize'" />
+        <BlueprintEditor
+          v-if="mode === 'customize'"
+          :editable="true"
+          v-model="blueprintStore.blueprint"
+        />
         <BlueprintPreview v-else />
       </transition>
     </div>

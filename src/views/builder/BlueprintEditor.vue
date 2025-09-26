@@ -77,7 +77,7 @@ const handleSaveRunePouch = (payload: { runes: (Item | null)[]; index: number })
       :tabs="loadoutTabs"
       :active-tab-id="activeLoadoutId"
       :editable="props.editable"
-      :show-delete="blueprint.loadouts.length > 1"
+      :show-delete="blueprint.loadouts.length > 1 && props.editable"
       @update:active-tab-id="setActiveLoadout"
       @delete="handleRequestDelete"
       @rename="({ id, newName }) => renameLoadout(id, newName)"

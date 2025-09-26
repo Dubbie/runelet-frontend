@@ -2,6 +2,7 @@
 import type { TiptapDocument, TiptapNode } from '@/interfaces/tiptap'
 import TiptapContentRenderer from './TiptapContentRenderer.vue'
 import BlueprintEditor from '@/views/builder/BlueprintEditor.vue'
+import type { Blueprint } from '@/interfaces'
 
 defineProps<{
   content: TiptapDocument | null
